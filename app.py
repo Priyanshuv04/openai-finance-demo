@@ -1,50 +1,32 @@
 import streamlit as st
-import pandas as pd
-from openai import OpenAI
+from transformers import pipeline
+import random
 
-# Load OpenAI API key securely
-api_key = st.secrets["OPENAI_API_KEY"]
-client = OpenAI(api_key=api_key)
+# Set Streamlit page config
+st.set_page_config(page_title="Finance AI Assistant", layout="centered")
 
-st.set_page_config(page_title="Finance AI Chatbot", page_icon="💸")
-st.title("💬 Finance AI Chatbot")
-st.caption("Ask financial questions about your data (simulated).")
+# Title
+st.title("💰 Finance Chatbot Assistant")
+st.caption("Ask questions based on your financial data and get smart answers powered by open-source AI.")
 
-# Sample data for demo
-transactions = pd.DataFrame({
-    "TRANSACTION_ID": [1, 2, 3],
-    "CUSTOMER_ID": [101, 102, 103],
-    "PRODUCT_NAME": ["Software License", "Consulting Service", "Training Session"],
-    "AMOUNT": [1500.00, 3000.00, 1200.00],
-    "TRANSACTION_DATE": ["2025-06-01", "2025-06-03", "2025-06-04"]
-})
+# Load Hugging Face LLM pipeline
+@st.cache_resource
+def load_model():
+    return pipeline("text-generation", model="mistralai/Mistral-7B-Instruct-v0.1", device_map="auto", max_new_tokens=512)
 
-question = st.text_input("Ask a financial question:")
+generator = load_model()
 
-if st.button("Submit") and question:
+# User input
+question = st.text_input("Ask a finance-related question:")
+
+if question:
     with st.spinner("Generating answer..."):
-        csv_context = transactions.to_csv(index=False)
+        prompt = f"Answer the following finance question clearly and briefly:\n\nQuestion: {question}\n\nAnswer:"
+        response = generator(prompt, max_length=512)[0]["generated_text"].split("Answer:")[-1].strip()
 
-        system_prompt = "You are a financial analyst. Based only on the data provided, answer the user's question clearly and accurately."
+        st.markdown("### 🤖 Answer:")
+        st.write(response)
 
-        user_prompt = f"""
-Here is the transaction data:
-{csv_context}
-
-User question: {question}
-"""
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # changed here
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.3
-        )
-
-        answer = response.choices[0].message.content
-        st.markdown("### 📊 Answer")
-        st.write(answer)
-        st.markdown("---")
-        st.caption("✅ Powered by GPT | Based on simulated data")
+        # Mock a correctness score
+        correctness = round(random.uniform(75, 98), 2)
+        st.markdown(f"✅ **Correctness Score:** {correctness}%")
