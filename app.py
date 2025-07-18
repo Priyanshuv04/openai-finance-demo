@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from openai import OpenAI
 
-# Load OpenAI API key securely from Streamlit secrets
+# Load OpenAI API key securely
 api_key = st.secrets["OPENAI_API_KEY"]
 client = OpenAI(api_key=api_key)
 
@@ -10,7 +10,7 @@ st.set_page_config(page_title="Finance AI Chatbot", page_icon="💸")
 st.title("💬 Finance AI Chatbot")
 st.caption("Ask financial questions about your data (simulated).")
 
-# Sample finance data (replace with Snowflake queries later)
+# Sample data for demo
 transactions = pd.DataFrame({
     "TRANSACTION_ID": [1, 2, 3],
     "CUSTOMER_ID": [101, 102, 103],
@@ -23,8 +23,6 @@ question = st.text_input("Ask a financial question:")
 
 if st.button("Submit") and question:
     with st.spinner("Generating answer..."):
-
-        # Prepare CSV-style context for GPT
         csv_context = transactions.to_csv(index=False)
 
         system_prompt = "You are a financial analyst. Based only on the data provided, answer the user's question clearly and accurately."
@@ -36,9 +34,8 @@ Here is the transaction data:
 User question: {question}
 """
 
-        # Use GPT-4 model via OpenAI v1.0+ SDK
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",  # changed here
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -46,11 +43,8 @@ User question: {question}
             temperature=0.3
         )
 
-        # Extract the answer
         answer = response.choices[0].message.content
-
-        # Display result
         st.markdown("### 📊 Answer")
         st.write(answer)
         st.markdown("---")
-        st.caption("✅ Powered by GPT-4 | Based on provided sample data")
+        st.caption("✅ Powered by GPT | Based on simulated data")
