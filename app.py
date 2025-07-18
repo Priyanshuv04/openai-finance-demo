@@ -1,78 +1,56 @@
 import streamlit as st
 import pandas as pd
-import openai
-import os
+from openai import OpenAI
 
-# --- Set API Key ---
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Load OpenAI API key securely from Streamlit secrets
+api_key = st.secrets["OPENAI_API_KEY"]
+client = OpenAI(api_key=api_key)
 
-# --- Sample Finance Data ---
-@st.cache_data
-def load_data():
-    transactions = pd.DataFrame([
-        [1, 101, 'Software License', 1500.00, '2025-06-01'],
-        [2, 102, 'Consulting Service', 3000.00, '2025-06-03'],
-        [3, 103, 'Training Session', 1200.00, '2025-06-04']
-    ], columns=['TRANSACTION_ID', 'CUSTOMER_ID', 'PRODUCT_NAME', 'AMOUNT', 'TRANSACTION_DATE'])
+st.set_page_config(page_title="Finance AI Chatbot", page_icon="💸")
+st.title("💬 Finance AI Chatbot")
+st.caption("Ask financial questions about your data (simulated).")
 
-    expenses = pd.DataFrame([
-        [1, 'Software Subscriptions', 250.00, '2025-06-02'],
-        [2, 'Travel', 500.00, '2025-06-05'],
-        [3, 'Office Supplies', 100.00, '2025-06-06']
-    ], columns=['EXPENSE_ID', 'CATEGORY', 'AMOUNT', 'EXPENSE_DATE'])
+# Sample finance data (replace with Snowflake queries later)
+transactions = pd.DataFrame({
+    "TRANSACTION_ID": [1, 2, 3],
+    "CUSTOMER_ID": [101, 102, 103],
+    "PRODUCT_NAME": ["Software License", "Consulting Service", "Training Session"],
+    "AMOUNT": [1500.00, 3000.00, 1200.00],
+    "TRANSACTION_DATE": ["2025-06-01", "2025-06-03", "2025-06-04"]
+})
 
-    salaries = pd.DataFrame([
-        [1, 'Alice', 'Finance', 6000.00],
-        [2, 'Bob', 'Engineering', 7500.00],
-        [3, 'Charlie', 'HR', 5000.00]
-    ], columns=['EMP_ID', 'EMP_NAME', 'DEPARTMENT', 'MONTHLY_SALARY'])
+question = st.text_input("Ask a financial question:")
 
-    return transactions, expenses, salaries
-
-# --- UI ---
-st.set_page_config(page_title="Finance Chat", layout="centered")
-st.title("💬 Finance Chatbot with AI")
-st.markdown("Ask questions about your financial data.")
-
-user_input = st.text_input("❓ What do you want to know?")
-
-# Load data
-transactions, expenses, salaries = load_data()
-
-# Display sample data
-with st.expander("📂 Sample Finance Data"):
-    st.write("**Transactions:**", transactions)
-    st.write("**Expenses:**", expenses)
-    st.write("**Salaries:**", salaries)
-
-if user_input:
+if st.button("Submit") and question:
     with st.spinner("Generating answer..."):
-        # Format prompt for AI
-        prompt = f"""
-You are a helpful finance assistant. Use the following data to answer the question below in plain English.
 
-Question: {user_input}
+        # Prepare CSV-style context for GPT
+        csv_context = transactions.to_csv(index=False)
 
-TRANSACTIONS:
-{transactions.head(3).to_string(index=False)}
+        system_prompt = "You are a financial analyst. Based only on the data provided, answer the user's question clearly and accurately."
 
-EXPENSES:
-{expenses.head(3).to_string(index=False)}
+        user_prompt = f"""
+Here is the transaction data:
+{csv_context}
 
-SALARIES:
-{salaries.head(3).to_string(index=False)}
-
-Answer:
+User question: {question}
 """
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=500
-            )
-            reply = response['choices'][0]['message']['content']
-            st.success(reply)
-            st.markdown(f"✅ Confidence Score: {round(85 + 10 * os.urandom(1)[0] / 255, 2)}%")
-        except Exception as e:
-            st.error(f"Error: {e}")
+
+        # Use GPT-4 model via OpenAI v1.0+ SDK
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3
+        )
+
+        # Extract the answer
+        answer = response.choices[0].message.content
+
+        # Display result
+        st.markdown("### 📊 Answer")
+        st.write(answer)
+        st.markdown("---")
+        st.caption("✅ Powered by GPT-4 | Based on provided sample data")
